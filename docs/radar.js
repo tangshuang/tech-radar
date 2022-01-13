@@ -149,8 +149,7 @@ function radar_visualization(config) {
     var point = entry.segment.random();
     entry.x = point.x;
     entry.y = point.y;
-    entry.color = entry.active || config.print_layout ?
-      config.rings[entry.ring].color : config.colors.inactive;
+    entry.color = entry.active ? config.rings[entry.ring].color : config.colors.inactive;
   }
 
   // partition entries according to segments
@@ -254,16 +253,21 @@ function radar_visualization(config) {
     }
   }
 
-  function legend_transform(quadrant, ring, index=null) {
+  function calculate_position(quadrant, ring, index = null) {
     var dx = ring < 2 ? 0 : 120;
     var dy = (index == null ? -16 : index * 12);
     if (ring % 2 === 1) {
       dy = dy + 36 + segmented[quadrant][ring-1].length * 12;
     }
-    return translate(
-      legend_offset[quadrant].x + dx,
-      legend_offset[quadrant].y + dy
-    );
+    return {
+      x: legend_offset[quadrant].x + dx,
+      y: legend_offset[quadrant].y + dy
+    }
+  }
+
+  function legend_transform(quadrant, ring, index=null) {
+    const { x, y } = calculate_position(quadrant, ring, index)
+    return translate(x, y);
   }
 
   // draw title and legend (only in print layout)
@@ -393,7 +397,7 @@ function radar_visualization(config) {
         .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
 
   // configure each blip
-  blips.each(function(d) {
+  blips.each(function(d, i) {
     var blip = d3.select(this);
 
     // blip link
@@ -404,9 +408,19 @@ function radar_visualization(config) {
 
     // blip shape
     if (d.moved > 0) {
+      // 当前位置
       blip.append("path")
         .attr("d", "M -11,5 11,5 0,-13 z") // triangle pointing up
         .style("fill", d.color);
+
+      // 原始位置
+      console.log(d)
+      const { x, y } = calculate_position(d.quadrant, d.ring)
+      console.log(x, y)
+      blip.append("circle")
+        .attr("r", 9)
+        .attr("fill", d.color)
+        .style("transform", translate(x + 'px', y + 'px'));
     } else if (d.moved < 0) {
       blip.append("path")
         .attr("d", "M -11,-5 11,-5 0,13 z") // triangle pointing down
