@@ -21,7 +21,7 @@
 // THE SOFTWARE.
 
 
-function radar_visualization(config) {
+function init_radar(config) {
 
   // custom random number generator, to make random sequence reproducible
   // source: https://stackoverflow.com/questions/521295
@@ -304,11 +304,13 @@ function radar_visualization(config) {
 
   // draw title and legend (only in print layout)
   // title
-  radar.append("text")
-    .attr("transform", translate(title_offset.x, title_offset.y))
-    .text(config.title)
-    .style("font-family", "Arial, Helvetica")
-    .style("font-size", "34px");
+  if (config.title) {
+    radar.append("text")
+      .attr("transform", translate(title_offset.x, title_offset.y))
+      .text(config.title)
+      .style("font-family", "Arial, Helvetica")
+      .style("font-size", "34px");
+  }
 
   // footer
   // const footer = radar.append("g")
@@ -319,39 +321,41 @@ function radar_visualization(config) {
   //   // .style("font-size", "10px");
 
   // legend
-  var legend = radar.append("g");
-  for (var quadrant = 0; quadrant < 4; quadrant++) {
-    legend.append("text")
-      .attr("transform", translate(
-        legend_offset[quadrant].x,
-        legend_offset[quadrant].y - 45
-      ))
-      .text(config.quadrants[quadrant].name)
-      .style("font-family", "Arial, Helvetica")
-      .style("font-size", "18px");
-    for (var ring = 0; ring < 4; ring++) {
+  if (!config.hide_legend) {
+    var legend = radar.append("g");
+    for (var quadrant = 0; quadrant < 4; quadrant++) {
       legend.append("text")
-        .attr("transform", legend_transform(quadrant, ring))
-        .text(config.rings[ring].name)
+        .attr("transform", translate(
+          legend_offset[quadrant].x,
+          legend_offset[quadrant].y - 45
+        ))
+        .text(config.quadrants[quadrant].name)
         .style("font-family", "Arial, Helvetica")
-        .style("font-size", "12px")
-        .style("font-weight", "bold");
-      legend.selectAll(".legend" + quadrant + ring)
-        .data(segmented[quadrant][ring])
-        .enter()
-          .append("a")
-            .attr("href", function (d, i) {
-              return d.link ? d.link : "#"; // stay on same page if no link was provided
-            })
-          .append("text")
-            .attr("transform", function(d, i) { return legend_transform(quadrant, ring, i); })
-            .attr("class", "legend" + quadrant + ring)
-            .attr("id", function(d, i) { return "legendItem" + d.id; })
-            .text(function(d, i) { return d.id + ". " + d.label; })
-            .style("font-family", "Arial, Helvetica")
-            .style("font-size", "11px")
-            .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
-            .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
+        .style("font-size", "18px");
+      for (var ring = 0; ring < 4; ring++) {
+        legend.append("text")
+          .attr("transform", legend_transform(quadrant, ring))
+          .text(config.rings[ring].name)
+          .style("font-family", "Arial, Helvetica")
+          .style("font-size", "12px")
+          .style("font-weight", "bold");
+        legend.selectAll(".legend" + quadrant + ring)
+          .data(segmented[quadrant][ring])
+          .enter()
+            .append("a")
+              .attr("href", function (d, i) {
+                return d.link ? d.link : null; // stay on same page if no link was provided
+              })
+            .append("text")
+              .attr("transform", function(d, i) { return legend_transform(quadrant, ring, i); })
+              .attr("class", "legend" + quadrant + ring)
+              .attr("id", function(d, i) { return "legendItem" + d.id; })
+              .text(function(d, i) { return d.id + ". " + d.label; })
+              .style("font-family", "Arial, Helvetica")
+              .style("font-size", "11px")
+              .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
+              .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
+      }
     }
   }
 
@@ -396,21 +400,25 @@ function radar_visualization(config) {
   }
 
   function hideBubble(d) {
-    var bubble = d3.select("#bubble")
+    d3.select("#bubble")
       .attr("transform", translate(0,0))
       .style("opacity", 0);
   }
 
   function highlightLegendItem(d) {
     var legendItem = document.getElementById("legendItem" + d.id);
-    legendItem.setAttribute("filter", "url(#solid)");
-    legendItem.setAttribute("fill", "white");
+    if (legendItem) {
+      legendItem.setAttribute("filter", "url(#solid)");
+      legendItem.setAttribute("fill", "white");
+    }
   }
 
   function unhighlightLegendItem(d) {
     var legendItem = document.getElementById("legendItem" + d.id);
-    legendItem.removeAttribute("filter");
-    legendItem.removeAttribute("fill");
+    if (legendItem) {
+      legendItem.removeAttribute("filter");
+      legendItem.removeAttribute("fill");
+    }
   }
 
   // draw blips on radar

@@ -1,24 +1,16 @@
-<html>
+<!DOCTYPE html>
 
-<head>
 <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-<title>Zalando Tech Radar</title>
-<link rel="shortcut icon" href="https://www.zalando.de/favicon.ico">
-
-<script src="https://d3js.org/d3.v4.min.js"></script>
-<script src="radar.js"></script>
-
-<link rel="stylesheet" href="radar.css">
-</head>
-
-<body>
+<title>技术雷达图</title>
 
 <svg id="radar"></svg>
 
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="radar.js"></script>
 <script>
-radar_visualization({
+init_radar({
   svg_id: "radar",
-  width: 1450,
+  width: 1500,
   height: 1000,
   colors: {
     background: "#fff",
@@ -33,6 +25,7 @@ radar_visualization({
     { name: "概念/标准/新技术" },
     { name: "方案/架构/设计" },
   ],
+  hide_legend: false,
   rings: [
     { name: "采纳", color: "#93c47d" },
     { name: "试验", color: "#93d2c2" },
@@ -490,6 +483,3 @@ radar_visualization({
   //ENTRIES
 });
 </script>
-
-</body>
-</html>
