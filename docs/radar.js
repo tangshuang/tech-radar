@@ -149,7 +149,7 @@ function radar_visualization(config) {
     var point = entry.segment.random();
     entry.x = point.x;
     entry.y = point.y;
-    entry.color = entry.active ? config.rings[entry.ring].color : config.colors.inactive;
+    entry.color = entry.inactive ? config.colors.inactive : config.rings[entry.ring].color;
   }
 
   // partition entries according to segments
@@ -204,6 +204,27 @@ function radar_visualization(config) {
 
   var grid = radar.append("g");
 
+  // draw rings
+  for (var i = 0; i < rings.length; i++) {
+    grid.append("text")
+      .text(config.rings[i].name)
+      .attr("y", -rings[i].radius + 62)
+      .attr("text-anchor", "middle")
+      .style("fill", config.colors.rings)
+      .style("font-family", "Arial, Helvetica")
+      .style("font-size", "42px")
+      .style("font-weight", "bold")
+      .style("pointer-events", "none")
+      .style("user-select", "none");
+    grid.append("circle")
+      .attr("cx", 0)
+      .attr("cy", 0)
+      .attr("r", rings[i].radius)
+      .style("fill", "none")
+      .style("stroke", config.colors.grid)
+      .style("stroke-width", 1);
+  }
+
   // draw grid lines
   grid.append("line")
     .attr("x1", 0).attr("y1", -400)
@@ -230,39 +251,50 @@ function radar_visualization(config) {
   filter.append("feComposite")
     .attr("in", "SourceGraphic");
 
-  // draw rings
-  for (var i = 0; i < rings.length; i++) {
-    grid.append("circle")
-      .attr("cx", 0)
-      .attr("cy", 0)
-      .attr("r", rings[i].radius)
-      .style("fill", "none")
-      .style("stroke", config.colors.grid)
-      .style("stroke-width", 1);
-    if (config.print_layout) {
-      grid.append("text")
-        .text(config.rings[i].name)
-        .attr("y", -rings[i].radius + 62)
-        .attr("text-anchor", "middle")
-        .style("fill", "#e5e5e5")
-        .style("font-family", "Arial, Helvetica")
-        .style("font-size", "42px")
-        .style("font-weight", "bold")
-        .style("pointer-events", "none")
-        .style("user-select", "none");
+  function calculate_offset(d, index) {
+    const { x: originX, y: originY, moved = 0, ring: originRing } = d
+
+    const x2 = Math.pow(originX, 2)
+    const y2 = Math.pow(originY, 2)
+    const z = Math.sqrt(x2 + y2)
+
+    const endRing = originRing + moved
+    let distance = 0
+    const max = Math.max(originRing, endRing)
+    const min = Math.min(originRing, endRing)
+    for (let i = max; i > min; i --) {
+      const r1 = rings[i].radius
+      const r2 = rings[i - 1] ? rings[i - 1].radius : 0
+      const d = r1 - r2
+      distance += d
+    }
+
+    const direction = moved > 0 ? -1 : 1 // 当moved为正数时，往里面移动
+    const endZ = z + distance * direction // 移动后的斜边长度
+
+    const rate = endZ / z // 移动后的斜边比上移动前的斜边
+
+    const endX = originX * rate
+    const endY = originY * rate
+
+    const x = originX - endX
+    let y = originY - endY
+
+    return {
+      x,
+      y,
     }
   }
 
-  function calculate_position(quadrant, ring, index = null) {
+  function calculate_position(quadrant, ring, index=null) {
     var dx = ring < 2 ? 0 : 120;
     var dy = (index == null ? -16 : index * 12);
     if (ring % 2 === 1) {
       dy = dy + 36 + segmented[quadrant][ring-1].length * 12;
     }
-    return {
-      x: legend_offset[quadrant].x + dx,
-      y: legend_offset[quadrant].y + dy
-    }
+    const x = legend_offset[quadrant].x + dx
+    const y = legend_offset[quadrant].y + dy
+    return { x, y }
   }
 
   function legend_transform(quadrant, ring, index=null) {
@@ -271,58 +303,55 @@ function radar_visualization(config) {
   }
 
   // draw title and legend (only in print layout)
-  if (config.print_layout) {
+  // title
+  radar.append("text")
+    .attr("transform", translate(title_offset.x, title_offset.y))
+    .text(config.title)
+    .style("font-family", "Arial, Helvetica")
+    .style("font-size", "34px");
 
-    // title
-    radar.append("text")
-      .attr("transform", translate(title_offset.x, title_offset.y))
-      .text(config.title)
+  // // footer
+  // radar.append("text")
+  //   .attr("transform", translate(footer_offset.x, footer_offset.y))
+  //   .text("▲ moved up     ▼ moved down")
+  //   .attr("xml:space", "preserve")
+  //   .style("font-family", "Arial, Helvetica")
+  //   .style("font-size", "10px");
+
+  // legend
+  var legend = radar.append("g");
+  for (var quadrant = 0; quadrant < 4; quadrant++) {
+    legend.append("text")
+      .attr("transform", translate(
+        legend_offset[quadrant].x,
+        legend_offset[quadrant].y - 45
+      ))
+      .text(config.quadrants[quadrant].name)
       .style("font-family", "Arial, Helvetica")
-      .style("font-size", "34px");
-
-    // footer
-    radar.append("text")
-      .attr("transform", translate(footer_offset.x, footer_offset.y))
-      .text("▲ moved up     ▼ moved down")
-      .attr("xml:space", "preserve")
-      .style("font-family", "Arial, Helvetica")
-      .style("font-size", "10px");
-
-    // legend
-    var legend = radar.append("g");
-    for (var quadrant = 0; quadrant < 4; quadrant++) {
+      .style("font-size", "18px");
+    for (var ring = 0; ring < 4; ring++) {
       legend.append("text")
-        .attr("transform", translate(
-          legend_offset[quadrant].x,
-          legend_offset[quadrant].y - 45
-        ))
-        .text(config.quadrants[quadrant].name)
+        .attr("transform", legend_transform(quadrant, ring))
+        .text(config.rings[ring].name)
         .style("font-family", "Arial, Helvetica")
-        .style("font-size", "18px");
-      for (var ring = 0; ring < 4; ring++) {
-        legend.append("text")
-          .attr("transform", legend_transform(quadrant, ring))
-          .text(config.rings[ring].name)
-          .style("font-family", "Arial, Helvetica")
-          .style("font-size", "12px")
-          .style("font-weight", "bold");
-        legend.selectAll(".legend" + quadrant + ring)
-          .data(segmented[quadrant][ring])
-          .enter()
-            .append("a")
-                .attr("href", function (d, i) {
-                  return d.link ? d.link : "#"; // stay on same page if no link was provided
-                })
-            .append("text")
-              .attr("transform", function(d, i) { return legend_transform(quadrant, ring, i); })
-              .attr("class", "legend" + quadrant + ring)
-              .attr("id", function(d, i) { return "legendItem" + d.id; })
-              .text(function(d, i) { return d.id + ". " + d.label; })
-              .style("font-family", "Arial, Helvetica")
-              .style("font-size", "11px")
-              .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
-              .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
-      }
+        .style("font-size", "12px")
+        .style("font-weight", "bold");
+      legend.selectAll(".legend" + quadrant + ring)
+        .data(segmented[quadrant][ring])
+        .enter()
+          .append("a")
+            .attr("href", function (d, i) {
+              return d.link ? d.link : "#"; // stay on same page if no link was provided
+            })
+          .append("text")
+            .attr("transform", function(d, i) { return legend_transform(quadrant, ring, i); })
+            .attr("class", "legend" + quadrant + ring)
+            .attr("id", function(d, i) { return "legendItem" + d.id; })
+            .text(function(d, i) { return d.id + ". " + d.label; })
+            .style("font-family", "Arial, Helvetica")
+            .style("font-size", "11px")
+            .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
+            .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
     }
   }
 
@@ -351,21 +380,19 @@ function radar_visualization(config) {
     .style("fill", "#333");
 
   function showBubble(d) {
-    if (d.active || config.print_layout) {
-      var tooltip = d3.select("#bubble text")
-        .text(d.label);
-      var bbox = tooltip.node().getBBox();
-      d3.select("#bubble")
-        .attr("transform", translate(d.x - bbox.width / 2, d.y - 16))
-        .style("opacity", 0.8);
-      d3.select("#bubble rect")
-        .attr("x", -5)
-        .attr("y", -bbox.height)
-        .attr("width", bbox.width + 10)
-        .attr("height", bbox.height + 4);
-      d3.select("#bubble path")
-        .attr("transform", translate(bbox.width / 2 - 5, 3));
-    }
+    var tooltip = d3.select("#bubble text")
+      .text(d.label);
+    var bbox = tooltip.node().getBBox();
+    d3.select("#bubble")
+      .attr("transform", translate(d.x - bbox.width / 2, d.y - 16))
+      .style("opacity", 0.8);
+    d3.select("#bubble rect")
+      .attr("x", -5)
+      .attr("y", -bbox.height)
+      .attr("width", bbox.width + 10)
+      .attr("height", bbox.height + 4);
+    d3.select("#bubble path")
+      .attr("transform", translate(bbox.width / 2 - 5, 3));
   }
 
   function hideBubble(d) {
@@ -393,57 +420,79 @@ function radar_visualization(config) {
       .append("g")
         .attr("class", "blip")
         .attr("transform", function(d, i) { return legend_transform(d.quadrant, d.ring, i); })
-        .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
-        .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
+        .on("mouseover", function(d, i) {
+          showBubble(d);
+          highlightLegendItem(d);
+
+          const item = d3.select(this)
+          const { x, y } = calculate_offset(d, i)
+
+          item.selectAll('circle.move-to')
+            .attr('transform', translate(x, y))
+            .style('display', '')
+
+          item.selectAll('line.move-to')
+            .attr('x2', x)
+            .attr('y2', y)
+            .style('display', '')
+        })
+        .on("mouseout", function(d) {
+          hideBubble(d);
+          unhighlightLegendItem(d);
+          d3.select(this).selectAll('.move-to')
+            .style('display', 'none')
+        })
 
   // configure each blip
   blips.each(function(d, i) {
     var blip = d3.select(this);
 
-    // blip link
-    if (!config.print_layout && d.active && d.hasOwnProperty("link")) {
-      blip = blip.append("a")
-        .attr("xlink:href", d.link);
+    // 先画线，避免线遮住实心
+    if (d.moved) {
+      blip.append("line")
+        .attr("x1", 0).attr("y1", 0)
+        .attr('class', 'move-to')
+        .style('display', 'none')
+        .style("stroke", config.colors.inactive)
+        .style("stroke-width", 1);
+
+      blip.append("circle")
+        .attr("r", 3)
+        .attr("fill", config.colors.inactive)
+        .attr('class', 'move-to')
+        .style('display', 'none')
+
+      const angle = Math.atan2(d.y, d.x)
+      const deg = angle * 180 / Math.PI
+      const rotate = d.moved < 0 ? deg - 100 : deg + 90
+
+      blip.append("circle")
+        .attr("r", 11)
+        .attr("fill", 'none')
+        .attr('stroke', d.color)
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', 35)
+        .attr('transform', `rotate(${rotate})`)
     }
 
     // blip shape
-    if (d.moved > 0) {
-      // 当前位置
-      blip.append("path")
-        .attr("d", "M -11,5 11,5 0,-13 z") // triangle pointing up
-        .style("fill", d.color);
-
-      // 原始位置
-      console.log(d)
-      const { x, y } = calculate_position(d.quadrant, d.ring)
-      console.log(x, y)
-      blip.append("circle")
-        .attr("r", 9)
-        .attr("fill", d.color)
-        .style("transform", translate(x + 'px', y + 'px'));
-    } else if (d.moved < 0) {
-      blip.append("path")
-        .attr("d", "M -11,-5 11,-5 0,13 z") // triangle pointing down
-        .style("fill", d.color);
-    } else {
-      blip.append("circle")
-        .attr("r", 9)
-        .attr("fill", d.color);
-    }
+    blip.append("circle")
+      .attr("r", 9)
+      .attr("fill", d.color)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 2)
 
     // blip text
-    if (d.active || config.print_layout) {
-      var blip_text = config.print_layout ? d.id : d.label.match(/[a-z]/i);
-      blip.append("text")
-        .text(blip_text)
-        .attr("y", 3)
-        .attr("text-anchor", "middle")
-        .style("fill", "#fff")
-        .style("font-family", "Arial, Helvetica")
-        .style("font-size", function(d) { return blip_text.length > 2 ? "8px" : "9px"; })
-        .style("pointer-events", "none")
-        .style("user-select", "none");
-    }
+    var blip_text = d.id || d.label.match(/[a-z]/i);
+    blip.append("text")
+      .text(blip_text)
+      .attr("y", 3)
+      .attr("text-anchor", "middle")
+      .style("fill", "#fff")
+      .style("font-family", "Arial, Helvetica")
+      .style("font-size", function(d) { return blip_text.length > 2 ? "8px" : "9px"; })
+      .style("pointer-events", "none")
+      .style("user-select", "none");
   });
 
   // make sure that blips stay inside their segment
