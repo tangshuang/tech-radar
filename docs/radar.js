@@ -310,13 +310,13 @@ function radar_visualization(config) {
     .style("font-family", "Arial, Helvetica")
     .style("font-size", "34px");
 
-  // // footer
-  // radar.append("text")
+  // footer
+  // const footer = radar.append("g")
   //   .attr("transform", translate(footer_offset.x, footer_offset.y))
-  //   .text("▲ moved up     ▼ moved down")
-  //   .attr("xml:space", "preserve")
-  //   .style("font-family", "Arial, Helvetica")
-  //   .style("font-size", "10px");
+  //   // .text("▲ moved up     ▼ moved down")
+  //   // .attr("xml:space", "preserve")
+  //   // .style("font-family", "Arial, Helvetica")
+  //   // .style("font-size", "10px");
 
   // legend
   var legend = radar.append("g");
@@ -454,7 +454,7 @@ function radar_visualization(config) {
         .attr('class', 'move-to')
         .style('display', 'none')
         .style("stroke", config.colors.inactive)
-        .style("stroke-width", 1);
+        .style("stroke-width", 2)
 
       blip.append("circle")
         .attr("r", 3)
